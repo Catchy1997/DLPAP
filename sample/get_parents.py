@@ -2,7 +2,7 @@ import os, re
 import pandas as pd
 from tqdm import tqdm
 
-def get_citations(path, citations_file):
+def get_parent(path, parent_file):
     application_id_list = []
     cited_id_list = []
     doc_date_list = []
@@ -50,10 +50,10 @@ def get_citations(path, citations_file):
         doc_status_list.append(doc_status[0])
         
     dataframe = pd.DataFrame({'application_id':application_id_list,'cited_id':cited_id_list,'date':doc_date_list,'status':doc_status_list})
-    if os.path.exists(citations_file):
-        dataframe.to_csv(citations_file, header=0, mode='a', index=False, sep=',')
+    if os.path.exists(parent_file):
+        dataframe.to_csv(parent_file, header=0, mode='a', index=False, sep=',')
     else:
-        dataframe.to_csv(citations_file, mode='a', index=False, sep=',')
+        dataframe.to_csv(parent_file, mode='a', index=False, sep=',')
 
 if __name__ == '__main__':
     location_path = "E:/Pythonworkspace/patent/patent_data/Application/"
@@ -62,11 +62,11 @@ if __name__ == '__main__':
     for name in name_list:
         print("years: " + name)
         excel_path = "E:/Pythonworkspace/patent/process_data/G-06-F-17/class/"+ name +".xlsx"
-        citations_file = "E:/Pythonworkspace/patent/process_data/G-06-F-17/network/citation/" + name +".csv"
+        parent_file = "E:/Pythonworkspace/patent/process_data/G-06-F-17/network/citation/" + name +".csv"
 
         data = pd.read_excel(excel_path, encoding='utf-8')
         location_list = data['location'].tolist()
         for i,location in enumerate(tqdm(location_list, ncols=60)):
             xml = location_path + location            
-            # add citations
-            get_citations(xml, citations_file)
+            # add parent
+            get_parent(xml, parent_file)
