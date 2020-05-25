@@ -129,13 +129,13 @@ if __name__ == '__main__':
 
     #  Active Learning
     num_train_nodes = len(pool_y_index[0])
-    batch = 20000 # ---------------------------------------------------------------
+    batch = 2560 # ---------------------------------------------------------------
     round_num = len(pool_y_index)
     num_pool_nodes = int(num_train_nodes / 2)
     # num_pool_nodes = 200
     maxIter = int(num_pool_nodes / batch)
     if maxIter > 40:
-        maxIter = 10 # ---------------------------------------------------------------
+        maxIter = 15 # ---------------------------------------------------------------
     print("Iteraion times:" + str(maxIter))
     results = []
     model_times = []
