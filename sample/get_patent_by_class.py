@@ -30,11 +30,12 @@ if __name__ == '__main__':
     # 得到某一类的专利
     class_name = 'G-06-F-17'
 
-    name_list = ["2006"]
+    name_list = ["2010"]
     for name in tqdm(name_list, ncols=70):
         filepath = "E:/Pythonworkspace/patent/patent_data/Application/" + name + "/"
+        
         patent_file_sum = sum_patent(name, filepath)
         after_class = patent_file_sum[patent_file_sum['cpc_class'] == class_name]
         # print("语料文本数量：" + str(len(after_class)))
         # 存储该类专利
-        after_class.to_excel("E:/Pythonworkspace/patent/process_data/"+class_name+"/"+name+".xlsx")
+        after_class.to_excel("E:/Pythonworkspace/patent/process_data/"+class_name+"/class/"+name+".xlsx")

@@ -4,7 +4,7 @@ from tqdm import tqdm
 
 def get_parent(path, parent_file):
     application_id_list = []
-    cited_id_list = []
+    parent_id_list = []
     doc_date_list = []
     doc_status_list = []
 
@@ -43,30 +43,29 @@ def get_parent(path, parent_file):
             doc_status = re.findall(r'<parent-status>(.+)</parent-status>', parent)
         else:
             doc_status = "NULL"
-        # 生成citation
         application_id_list.append(application_id)
-        cited_id_list.append(doc_number[0])
+        parent_id_list.append(doc_number[0])
         doc_date_list.append(doc_date[0])
         doc_status_list.append(doc_status[0])
         
-    dataframe = pd.DataFrame({'application_id':application_id_list,'cited_id':cited_id_list,'date':doc_date_list,'status':doc_status_list})
+    dataframe = pd.DataFrame({'application_id':application_id_list,'parent_id':parent_id_list,'date':doc_date_list,'status':doc_status_list})
     if os.path.exists(parent_file):
         dataframe.to_csv(parent_file, header=0, mode='a', index=False, sep=',')
     else:
         dataframe.to_csv(parent_file, mode='a', index=False, sep=',')
 
 if __name__ == '__main__':
+    year = "2012"
     location_path = "E:/Pythonworkspace/patent/patent_data/Application/"
 
-    name_list = ["2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018"]
-    for name in name_list:
-        print("years: " + name)
-        excel_path = "E:/Pythonworkspace/patent/process_data/G-06-F-17/class/"+ name +".xlsx"
-        parent_file = "E:/Pythonworkspace/patent/process_data/G-06-F-17/network/citation/" + name +".csv"
+    sample_num_list = [5000, 10000, 20000]
+    for sample_num in sample_num_list:
+        save_path = "E:/Pythonworkspace/patent/process_data/sample" + str(sample_num) + "/parent.csv"
 
+        excel_path = "E:/Pythonworkspace/patent/process_data/sample" + str(sample_num) + "/sample.xlsx"
         data = pd.read_excel(excel_path, encoding='utf-8')
         location_list = data['location'].tolist()
-        for i,location in enumerate(tqdm(location_list, ncols=60)):
+        for location in tqdm(location_list, ncols=60):
             xml = location_path + location            
             # add parent
-            get_parent(xml, parent_file)
+            get_parent(xml, save_path)
