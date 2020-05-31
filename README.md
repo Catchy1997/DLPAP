@@ -4,16 +4,20 @@ Code for the paper `Deep Learning for Patent Application: The Fusion of Network 
 ### 项目文件说明：
 - data_process：数据处理
    - class_count.py：提取patent application中的cpc分类信息，按照每一年进行统计
+   - get_appID_from_citaion.py：`location`和`application_id`字段的转换
    - index_build.py：遍历patent application文本，建立patent-inventor、patent-assignee之间的关系作为索引，按照每一年进行统计
    - split_citations.py：对PatentsView中统计的citations信息按照每一年进行划分和统计
    - xmlfile_deal.py：对patent application的原始zip文件进行数据预处理
 
 - sample：样本数据采集
-  - get_class.py
-  - get_network.py
-  - get_parents.py
-  - get_textual.py
-  - node.ipynb：节点数据的处理，建立唯一ID的对应关系
+  - 1get_patent_random.py：随机采集不同规模的patent数量 5000/10000/20000
+  - 2get_text.py：提取专利文本信息
+  - 3get_network.py：提取专利网络信息
+  - 4get_history.py：提取历史专利信息
+  - 5get_parent.py：提取原申请（parent patent）专利
+  - 6get_history_result.py：提取标签结果
+  - get_patent_by_class.py
+  - node.ipynb：节点数据的处理，建立唯一ID的对应关系并根据时间构建动态异构网络
 
 - sample_data：文本使用的数据
   - network
