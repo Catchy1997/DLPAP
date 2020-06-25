@@ -37,7 +37,6 @@ Code for the paper `Deep Learning for Patent Application: The Fusion of Network 
 
 - baseline_doc2vec:
   - Baseline：doc2vec.ipynb：对使用doc2vec方法得到的文档向量做分类预测
-  - G-06-F-17_300d.model：300维的pre-trained模型
   - doc2vec.ipynb：使用genism库训练语料得到文档向量
 
 - baseline_SIF:
