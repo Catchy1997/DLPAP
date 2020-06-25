@@ -9,7 +9,7 @@ from keras.preprocessing import text, sequence
 from keras import layers, models
 
 if __name__ == '__main__':
-    filename = "/home/hxjiang/Pythonworkspace/patent/sample3_G-06-F-17/textual/after_process.xlsx"
+    filename = "../after_process.xlsx"
     data = pd.read_excel(filename,encoding='utf-8')
 
     abstract = data['abstract_final']
@@ -23,14 +23,13 @@ if __name__ == '__main__':
     claims_token.fit_on_texts(claims)
     claims_word_index = claims_token.word_index
 
-    x_abs_seq = sequence.pad_sequences(abstract_token.texts_to_sequences(abstract), maxlen=140)
-    x_claims_seq = sequence.pad_sequences(claims_token.texts_to_sequences(claims), maxlen=1400)
+    x_abs_seq = sequence.pad_sequences(abstract_token.texts_to_sequences(abstract), maxlen=120)
+    x_claims_seq = sequence.pad_sequences(claims_token.texts_to_sequences(claims), maxlen=1200)
 
-    filepath = "./claims/"
-    docLabels = [f for f in os.listdir(filepath) if f.endswith('.h5')]
+    model_list = ["./abstract-ep021-loss0.688-val_loss0.694.h5", "./claims-ep010-loss0.662-val_loss0.672.h5"]
 
-    for model_filename in tqdm(docLabels, ncols=70):
-        model = models.load_model(filepath + model_filename)
+    for model_filename in tqdm(model_list, ncols=70):
+        model = models.load_model(model_filename)
         if len(re.findall(r'abstract', model_filename)) > 0:
             # model.summary()
             # get_3rd_layer_output = K.function(inputs=[model.layers[0].input,model.layers[1].input],outputs=[model.layers[-2].output])
@@ -42,4 +41,4 @@ if __name__ == '__main__':
             layer_model = models.Model(inputs=[model.layers[0].input],outputs=[model.layers[-4].output])
             intermediate_output = layer_model.predict(np.array(x_claims_seq), batch_size=128, verbose=1)  
         df = pd.DataFrame(intermediate_output)
-        df.to_excel(filepath + model_filename + ".xlsx")
+        df.to_excel(model_filename + ".xlsx")
