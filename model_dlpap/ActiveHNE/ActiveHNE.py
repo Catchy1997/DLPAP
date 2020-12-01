@@ -1,6 +1,13 @@
 # -*- coding: utf-8 -*-
 import time
+import warnings
+warnings.filterwarnings('ignore')
+
 import tensorflow as tf
+gpu_options = tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.9)
+config = tf.compat.v1.ConfigProto(gpu_options=gpu_options)
+config.gpu_options.allow_growth = True
+
 from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
@@ -11,7 +18,7 @@ import random
 from Active_select2 import *
 from rewards import *
 
-def plot_history(loss, acc, val_loss, val_acc, epochNum, epoch, run):
+def plot_history(loss, acc, val_loss, val_acc, iter_num):
     x = range(1, len(acc) + 1)
 
     plt.figure(figsize=(12, 5))
@@ -25,64 +32,57 @@ def plot_history(loss, acc, val_loss, val_acc, epochNum, epoch, run):
     plt.plot(x, val_loss, 'r', label='Validation loss')
     plt.title('Training and validation loss')
     plt.legend()
-    plt.savefig("/home/hxjiang/Pythonworkspace/patent/sample3_G-06-F-17/ActiveHNE/data/pic-"+str(epochNum)+"-"+str(run)+"-"+str(epoch)+".png")
+    plt.savefig("data/result/pic-"+str(iter_num)+".png")
 
 # Define model training function
-def DHNE_train(epochNum, run, iter_num, y_train1, train_mask1, y_val1, val_mask1, y_test1, test_mask1):
+def DHNE_train(y_train1, train_mask1, y_val1, val_mask1, y_test1, test_mask1, iter_num):
     model_t = time.time()
+
     # Create model
     model = DHNE(placeholders, input_dim=features[2][1], logging=True)
     # Initialize session
-    sess = tf.Session()
+    sess = tf.Session(config=config)
     # Init variables
     sess.run(tf.global_variables_initializer())
+    
     # Train model
     outs_train = []
     train_loss_list = []
     train_acc_list = []
     val_acc_list = []
     val_loss_list = []
-    count = 0
-    for epoch in range(epochNum):
+    
+    for epoch in range(FLAGS.epochs):
         # epoch_t = time.time()
-
-        # Construct feed dictionary
+        
+        # Training step
         feed_dict = construct_feed_dict(features, support, y_train1, train_mask1, placeholders)
         feed_dict.update({placeholders['dropout']: FLAGS.dropout})
-        # Training step
         outs_train = sess.run([model.opt_op, model.loss, model.accuracy, model.outputs, model.predict(), model.vector,], feed_dict=feed_dict)
         train_loss_list.append(outs_train[1])
         train_acc_list.append(outs_train[2])
+        
         # Validation
         feed_dict_val = construct_feed_dict(features, support, y_val1, val_mask1, placeholders)
         outs_val = sess.run([model.loss, model.accuracy], feed_dict=feed_dict_val)
         val_loss_list.append(outs_val[0])
         val_acc_list.append(outs_val[1])
-        # val_cost0 = outs_val[0]
-        # val_acc0 = outs_val[1]
-        # duration0 = time.time() - model_t
-        # print("Validation: epoch=" + str(epoch), "  Test set results:", "cost=", "{:.5f}".format(val_cost0),
-        # "accuracy=", "{:.5f}".format(val_acc0), "time=", "{:.5f}".format(duration0))
-        if epoch > 0:
-        	val_loss_entropy = val_loss_list[-1] - val_loss_list[-2]
-        	if val_loss_entropy > 0:
-        		count = count + 1
-        	if count >= 10:
-        		break
-    # plot_history(train_loss_list, train_acc_list, val_loss_list, val_acc_list, epochNum, epoch, run)
+        
+        # early_stop
+        if epoch > FLAGS.early_stopping and val_loss_list[-1] > np.mean(val_loss_list[-(FLAGS.early_stopping+1):-1]):
+            # print("Early stopping...")
+            break
+
+    duration0 = time.time() - model_t
+    plot_history(train_loss_list, train_acc_list, val_loss_list, val_acc_list, iter_num)
 
     # Testing
     feed_dict_test = construct_feed_dict(features, support, y_test1, test_mask1, placeholders)
     outs_test = sess.run([model.loss, model.accuracy], feed_dict=feed_dict_test)
     test_cost0 = outs_test[0]
     test_acc0 = outs_test[1]
-    duration0 = time.time() - model_t
-    # print("Testing: epoch=" + str(epoch), "  Test set results:", "cost=", "{:.5f}".format(test_cost0),
-    # "accuracy=", "{:.5f}".format(test_acc0), "time=", "{:.5f}".format(duration0))
-    # print("Optimization Finished!")
-    # print("Optimization Finished!")
         
-    return test_cost0, test_acc0, duration0, outs_train, count
+    return test_cost0, test_acc0, duration0, outs_train
 
 if __name__ == '__main__':
     # Set random seed
@@ -93,13 +93,17 @@ if __name__ == '__main__':
     # Settings
     flags = tf.app.flags
     FLAGS = flags.FLAGS
-    flags.DEFINE_string('dataset', 'Cora', 'Dataset string.')  # 'MovieLens', 'Cora', 'DBLP_four_area'
+    flags.DEFINE_string('dataset', 'Patent', 'Dataset string.')  # 'MovieLens', 'Cora', 'DBLP_four_area'
     flags.DEFINE_string('model', 'DHNE', 'Model string.')
-    flags.DEFINE_float('learning_rate', 0.01, 'Initial learning rate.')
+    flags.DEFINE_float('learning_rate', 0.001, 'Initial learning rate.')
     flags.DEFINE_integer('epochs', 200, 'Number of epochs to train.')
-    flags.DEFINE_integer('hidden1', 32, 'Number of units in hidden layer 1.')
-    flags.DEFINE_float('dropout', 0.5, 'Dropout rate (1 - keep probability).')
+    flags.DEFINE_integer('hidden1', 64, 'Number of units in hidden layer 1.')
+    flags.DEFINE_float('dropout', 0.1, 'Dropout rate (1 - keep probability).')
+    flags.DEFINE_integer('early_stopping', 20, 'Tolerance for early stopping (# of epochs).')
     flags.DEFINE_float('weight_decay', 5e-4, 'Weight for L2 loss on embedding matrix.')
+    flags.DEFINE_integer('batch', 128, 'Number of nodes for AL.')
+    flags.DEFINE_integer('iter', 40, 'Number of iters.')
+    flags.DEFINE_integer('round', 1, 'Times of random test.')
     dataset_arr = FLAGS.dataset.split('|')
 
     # Load data
@@ -129,14 +133,13 @@ if __name__ == '__main__':
 
     #  Active Learning
     num_train_nodes = len(pool_y_index[0])
-    batch = 2560 # ---------------------------------------------------------------
-    round_num = len(pool_y_index)
-    num_pool_nodes = int(num_train_nodes / 2)
-    # num_pool_nodes = 200
-    maxIter = int(num_pool_nodes / batch)
-    if maxIter > 40:
-        maxIter = 15 # ---------------------------------------------------------------
+    num_pool_nodes = int(num_train_nodes / 2)    
+
+    maxIter = int(num_pool_nodes / FLAGS.batch)
+    if maxIter > FLAGS.iter:
+       max_iter = FLAGS.iter
     print("Iteraion times:" + str(maxIter))
+
     results = []
     model_times = []
     select_times = []
@@ -145,10 +148,9 @@ if __name__ == '__main__':
     rewards_density = []
 
     # begin train
-    roundNum = 1 # ---------------------------------------------------------------
     acc_list = []
     time_list = []
-    for run in range(roundNum):
+    for run in range(FLAGS.round):
         result_temp = []
         model_time_temp = []
         select_time_temp = []
@@ -170,6 +172,7 @@ if __name__ == '__main__':
         y_test[test_mask, :] = y_all[test_mask, :]
         pool_idx = pool_idx.tolist()
         random.shuffle(pool_idx)
+
         outs_train = []
         train_idx = []
         outs_new = []
@@ -193,9 +196,9 @@ if __name__ == '__main__':
         for iter_num in range(maxIter):
             select_t = time.time()
             if iter_num == 0:
-                idx_select = pool_idx[0:batch]
+                idx_select = pool_idx[0:FLAGS.batch]
             else:
-                idx_select, idx_select_centrality, idx_select_entropy, idx_select_density, dominates = active_select(outs_train, old_adj, pool_idx, all_node_num, batch, importance, degree, rewards, class_num, iter_num, dominates)
+                idx_select, idx_select_centrality, idx_select_entropy, idx_select_density, dominates = active_select(outs_train, old_adj, pool_idx, all_node_num, FLAGS.batch, importance, degree, rewards, class_num, iter_num, dominates)
             select_duration = time.time() - select_t
 
             pool_idx = list(set(pool_idx) - set(idx_select))
@@ -203,7 +206,9 @@ if __name__ == '__main__':
             train_mask = sample_mask(train_idx, all_node_num)
             y_train = np.zeros((all_node_num, class_num))
             y_train[train_mask, :] = y_all[train_mask, :]
-            test_cost, test_acc, model_duration, outs_train, count = DHNE_train(FLAGS.epochs, run, iter_num, y_train, train_mask, y_val, val_mask, y_test, test_mask)
+            
+            test_cost, test_acc, model_duration, outs_train = DHNE_train(y_train, train_mask, y_val, val_mask, y_test, test_mask, iter_num)
+
             acc_list.append(test_acc)
             time_list.append(model_duration)
 
@@ -211,13 +216,13 @@ if __name__ == '__main__':
             vector = outs_train[5]*1000
             vector = vector.tolist()
             for i in range(0, 7769):
-                with open("/home/hxjiang/Pythonworkspace/patent/sample3_G-06-F-17/ActiveHNE/data/"+str(run)+"-"+str(iter_num)+".txt", 'a') as f:
+                with open("data/result/"+str(run)+"-"+str(iter_num)+".txt", 'a') as f:
                     f.write(str(vector[i]))
                     f.write('\n')
             
             print("round=" + str(run), " iter=" + str(iter_num), "  Test set results:", "cost=", "{:.5f}".format(test_cost), "accuracy=", "{:.5f}".format(test_acc), "model_duration=", "{:.5f}".format(model_duration), "select_duration=", "{:.5f}".format(select_duration))
 
-            with open("/home/hxjiang/Pythonworkspace/patent/sample3_G-06-F-17/ActiveHNE/data/acc_result.txt", 'a') as f:
+            with open("data/result/acc_result.txt", 'a') as f:
             	f.write("round="+str(run)+"\titer="+str(iter_num))
             	f.write("\tcost={:.5f}".format(test_cost))
             	f.write("\taccuracy={:.5f}".format(test_acc))
@@ -241,8 +246,8 @@ if __name__ == '__main__':
             else:
                 rewards = measure_rewards(outs_new, outs_old, rewards, old_adj, idx_select, idx_select_centrality, idx_select_entropy, idx_select_density)
 
-    with open("/home/hxjiang/Pythonworkspace/patent/sample3_G-06-F-17/ActiveHNE/data/parameter.txt", 'a') as f:
-        text = "weight_decay="+str(FLAGS.weight_decay)+" dropout="+str(FLAGS.dropout)+" epochs="+str(FLAGS.epochs)+" hidden1="+str(FLAGS.hidden1)+" learning_rate="+str(FLAGS.learning_rate)+" batch="+str(batch)+" maxIter="+str(maxIter)+" roundNum="+str(roundNum)+" early_stop="+str(count)
+    with open("data/result/parameter.txt", 'a') as f:
+        text = "weight_decay="+str(FLAGS.weight_decay)+" dropout="+str(FLAGS.dropout)+" epochs="+str(FLAGS.epochs)+" hidden1="+str(FLAGS.hidden1)+" learning_rate="+str(FLAGS.learning_rate)+" batch="+str(batch)+" maxIter="+str(maxIter)+" roundNum="+str(FLAGS.round)+" early_stop="+str(count)
         f.write(text)
         f.write('\n')
         f.write("acc:  {:.4f}".format(np.mean(acc_list)))
